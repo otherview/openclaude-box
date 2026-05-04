@@ -1,0 +1,24 @@
+# Ignore nested upstream source repo
+src/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+
+# Env
+.env
+.env.*
+
+# Logs
+*.log
+
+# Build/runtime artifacts
+node_modules/
+dist/
+build/
+.tmp/
+tmp/
