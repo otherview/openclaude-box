@@ -11,38 +11,60 @@ usage() {
 OpenClaude Docker sandbox
 
 Usage:
+  openclaude-box [openclaude args...]
   openclaude-box help
   openclaude-box init
   openclaude-box clone
   openclaude-box build
-  openclaude-box run [openclaude args...]
   openclaude-box version
   openclaude-box tools
   openclaude-box clean
 
 Examples:
-  openclaude-box run --version
-  openclaude-box run --resume ce97d743-110f-4292-ba80-647875007927
-  openclaude-box run --continue
+  openclaude-box                           # start agent with current dir
+  openclaude-box --version                 # pass args to the agent
+  openclaude-box --resume ce97d743-110f-4292-ba80-647875007927
 USAGE
 }
 
-cmd="${1:-help}"
-if [[ $# -gt 0 ]]; then
-  shift
-fi
+run_agent() {
+  mkdir -p "$HOME/.openclaude-box"
+  if [[ ! -s "$HOME/.openclaude-box/.openclaude.json" ]]; then
+    printf '{}\n' > "$HOME/.openclaude-box/.openclaude.json"
+  fi
 
-case "$cmd" in
+  docker run --rm -it \
+    -v "$PWD:/workspace" \
+    -w /workspace \
+    -v "$HOME/.openclaude-box:/home/node/.openclaude" \
+    -v "$HOME/.openclaude-box/.openclaude.json:/home/node/.openclaude.json" \
+    -v "$HOME/.codex:/home/node/.codex:ro" \
+    -e CLAUDE_CODE_USE_OPENAI \
+    -e OPENAI_API_KEY \
+    -e OPENAI_BASE_URL \
+    -e OPENAI_MODEL \
+    -e GEMINI_API_KEY \
+    -e GEMINI_MODEL \
+    -e MISTRAL_API_KEY \
+    -e MISTRAL_MODEL \
+    -e ANTHROPIC_API_KEY \
+    "$IMAGE" "$@"
+}
+
+case "${1:-}" in
   help|-h|--help)
+    shift
     usage
     ;;
 
   init)
+    shift
     mkdir -p "$HOME/.openclaude-box"
     echo "Ensured $HOME/.openclaude-box exists"
     ;;
 
   clone)
+    shift
     if [[ -d "$SRC_DIR/.git" ]]; then
       echo "Source already cloned at $SRC_DIR"
     else
@@ -51,6 +73,7 @@ case "$cmd" in
     ;;
 
   build)
+    shift
     if [[ ! -d "$SRC_DIR" ]]; then
       echo "Missing $SRC_DIR. Run: $0 clone" >&2
       exit 1
@@ -59,44 +82,28 @@ case "$cmd" in
     ;;
 
   run)
-    mkdir -p "$HOME/.openclaude-box"
-    if [[ ! -s "$HOME/.openclaude-box/.openclaude.json" ]]; then
-      printf '{}\n' > "$HOME/.openclaude-box/.openclaude.json"
-    fi
-
-    docker run --rm -it \
-      -v "$PWD:/workspace" \
-      -w /workspace \
-      -v "$HOME/.openclaude-box:/home/node/.openclaude" \
-      -v "$HOME/.openclaude-box/.openclaude.json:/home/node/.openclaude.json" \
-      -v "$HOME/.codex:/home/node/.codex:ro" \
-      -e CLAUDE_CODE_USE_OPENAI \
-      -e OPENAI_API_KEY \
-      -e OPENAI_BASE_URL \
-      -e OPENAI_MODEL \
-      -e GEMINI_API_KEY \
-      -e GEMINI_MODEL \
-      -e MISTRAL_API_KEY \
-      -e MISTRAL_MODEL \
-      -e ANTHROPIC_API_KEY \
-      "$IMAGE" "$@"
+    shift
+    run_agent "$@"
     ;;
 
   version)
+    shift
     docker run --rm "$IMAGE" --version
     ;;
 
   tools)
+    shift
     docker run --rm --entrypoint /bin/sh "$IMAGE" -lc 'go version && python3 --version && pip3 --version && make --version | head -n 1 && jq --version && rg --version | head -n 1 && git --version'
     ;;
 
   clean)
+    shift
     docker rmi "$IMAGE"
     ;;
 
   *)
-    echo "Unknown command: $cmd" >&2
-    echo "Run '$0 help' for usage." >&2
-    exit 1
+    # First arg is an OpenClaude flag (e.g. --resume, --version) or no arg
+    # Don't shift — pass all $@ to the agent as-is
+    run_agent "$@"
     ;;
 esac
