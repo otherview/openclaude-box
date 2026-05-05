@@ -1,11 +1,11 @@
 SHELL := /bin/bash
 
-PROJECT_DIR := /Users/bottybot/ai-agents/openclaude
+PROJECT_DIR := $(PWD)
 CLI := $(PROJECT_DIR)/openclaude-box
 INSTALL_DIR ?= $(HOME)/bin
 INSTALL_PATH := $(INSTALL_DIR)/openclaude-box
 
-.PHONY: help init clone build run version tools clean install uninstall
+.PHONY: help init build run version tools clean install uninstall
 
 help: ## Show available commands
 	@echo "OpenClaude box repo"
@@ -17,10 +17,11 @@ help: ## Show available commands
 init: ## Create ~/.openclaude-box
 	@$(CLI) init
 
-clone: ## Clone OpenClaude source into ./src
-	@$(CLI) clone
-
-build: ## Build the Docker image
+build: ## Build the Docker image (clones source if missing)
+	@if [[ ! -d "$(PROJECT_DIR)/src" ]]; then \
+		echo "Cloning OpenClaude source..."; \
+		git clone --depth 1 https://github.com/Gitlawb/openclaude.git "$(PROJECT_DIR)/src"; \
+	fi
 	@$(CLI) build
 
 run: ## Run OpenClaude (pass args with ARGS="...")
